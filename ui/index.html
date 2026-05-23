@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenFleet — Agent Management</title>
+    <meta name="description" content="OpenFleet: Monitor, configure and manage your OpAMP telemetry agents">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="overlay"></div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <h1>OpenFleet</h1>
+            </div>
+            <nav>
+                <a href="#" class="nav-link active" data-page="overview" id="nav-overview">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    Overview
+                </a>
+                <a href="#" class="nav-link" data-page="agents" id="nav-agents">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                    Agents
+                </a>
+                <a href="#" class="nav-link" data-page="configs" id="nav-configs">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    Configurations
+                </a>
+                <a href="#" class="nav-link" data-page="settings" id="nav-settings">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    Settings
+                </a>
+            </nav>
+            <div class="system-status">
+                <span class="status-indicator live"></span> System Online
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="content">
+
+            <!-- ── Overview Page ── -->
+            <div id="page-overview" class="page active">
+                <header class="top-nav">
+                    <div class="page-title">
+                        <h2>Agent Dashboard</h2>
+                        <p class="subtitle">Monitor and manage your connected telemetry agents</p>
+                    </div>
+                    <div class="stats-row" id="top-stats"></div>
+                </header>
+                <section class="agents-grid" id="overview-agents-container"></section>
+            </div>
+
+            <!-- ── Agents Page ── -->
+            <div id="page-agents" class="page">
+                <header class="top-nav agents-header">
+                    <div class="page-title">
+                        <h2>Agents</h2>
+                        <p class="subtitle">Deploy, manage and monitor your OpAMP supervisor agents</p>
+                    </div>
+                    <button class="btn-add-agent" id="btn-add-agent">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Add Agent
+                    </button>
+                </header>
+                <section class="agents-grid" id="agents-container"></section>
+            </div>
+
+            <!-- ── Configurations Page ── -->
+            <div id="page-configs" class="page">
+                <header class="top-nav">
+                    <div class="page-title">
+                        <h2>Configurations</h2>
+                        <p class="subtitle">Manage YAML templates and saved wizard presets</p>
+                    </div>
+                </header>
+
+                <!-- Configs Tab Bar -->
+                <div class="cfg-tab-bar">
+                    <button class="cfg-tab active" id="cfg-tab-templates" data-cfgtab="templates">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                        YAML Templates
+                    </button>
+                    <button class="cfg-tab" id="cfg-tab-wizardconfigs" data-cfgtab="wizardconfigs">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        Saved Wizard Presets
+                        <span class="cfg-tab-badge" id="wizard-configs-count"></span>
+                    </button>
+                </div>
+
+                <!-- ── YAML Templates Tab ── -->
+                <div class="cfg-tab-pane active" id="cfgpane-templates">
+                    <div class="configs-layout">
+                        <!-- Left: Template List -->
+                        <div class="configs-sidebar">
+                            <div class="configs-sidebar-header">
+                                <input class="form-input" type="search" id="template-search" placeholder="Search templates…">
+                                <button class="btn-add-agent" id="btn-new-template" style="padding:.5rem .9rem;font-size:.8rem">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    New
+                                </button>
+                            </div>
+                            <div class="template-list" id="template-list">
+                                <div class="cfg-empty-state"><p>Loading templates…</p></div>
+                            </div>
+                        </div>
+
+                        <!-- Centre: YAML Editor -->
+                        <div class="configs-editor" id="template-editor-pane" style="display:none">
+                            <div class="configs-editor-header">
+                                <div class="form-group" style="flex:1">
+                                    <label class="form-label" for="tpl-name">Template Name <span class="required">*</span></label>
+                                    <input class="form-input" type="text" id="tpl-name" placeholder="e.g. Production Traces Pipeline">
+                                </div>
+                                <div class="form-group" style="flex:1">
+                                    <label class="form-label" for="tpl-desc">Description <span class="optional">optional</span></label>
+                                    <input class="form-input" type="text" id="tpl-desc" placeholder="What does this config do?">
+                                </div>
+                                <div class="form-group" style="flex:0 0 180px">
+                                    <label class="form-label" for="tpl-config-key">
+                                        Config Key <span class="optional">optional</span>
+                                        <span class="tooltip-icon" data-tooltip="The slot this template occupies in the agent's ConfigMap. Leave empty for the primary collector config. Use named keys (e.g. 'security', 'pipeline') to send multiple YAML files to the same agent — they get merged by the collector.">?</span>
+                                    </label>
+                                    <input class="form-input" type="text" id="tpl-config-key" placeholder="(primary slot)" style="font-family:var(--font-mono);font-size:.82rem">
+                                </div>
+                            </div>
+                            <label class="form-label" style="display:block;margin-bottom:.4rem">Collector Config YAML <span class="required">*</span></label>
+                            <!-- OpAMP extension warning banner -->
+                            <div id="tpl-opamp-warning" style="display:none;margin-bottom:.5rem;padding:.5rem .75rem;border-radius:6px;background:rgba(255,160,0,.12);border:1px solid rgba(255,160,0,.4);color:#e6a000;font-size:.8rem;line-height:1.4">
+                                ⚠️ <strong>extensions.opamp</strong> is managed by the server and will be <strong>automatically overwritten</strong> on push. You can safely remove it from your template — it is always injected.
+                            </div>
+                            <textarea class="form-input form-textarea yaml-editor" id="tpl-yaml" rows="18" spellcheck="false"></textarea>
+                            <div class="configs-editor-footer">
+                                <span class="push-status" id="cfg-status"></span>
+                                <div style="display:flex;gap:.5rem">
+                                    <button class="btn-modal-cancel" id="btn-cancel-template">Cancel</button>
+                                    <button class="btn-action-panel danger" id="btn-delete-template" style="display:none">Delete</button>
+                                    <button class="btn-modal-primary" id="btn-save-template">↑ Save Template</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="configs-editor-placeholder" id="template-placeholder">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <p>Select a template to edit, or create a new one</p>
+                        </div>
+
+                        <!-- Right: Bulk Push -->
+                        <div class="configs-push-panel">
+                            <div class="push-panel-title">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                Bulk Push
+                            </div>
+                            <p class="form-hint" style="margin-bottom:.75rem">Select one or more templates (check below) and target agents, then push all at once.</p>
+
+                            <!-- Multi-template selection -->
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+                                <span class="form-label" style="text-transform:none;font-size:.78rem">Templates to Push</span>
+                                <button class="btn-modal-cancel" id="btn-select-all-templates" style="padding:.2rem .55rem;font-size:.7rem">All</button>
+                            </div>
+                            <div class="bulk-agent-list" id="bulk-template-list" style="max-height:130px;margin-bottom:.75rem"></div>
+
+                            <!-- Target agents -->
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+                                <span class="form-label" style="text-transform:none;font-size:.78rem">Target Agents</span>
+                                <button class="btn-modal-cancel" id="btn-select-all" style="padding:.25rem .6rem;font-size:.72rem">Select All</button>
+                            </div>
+                            <div class="bulk-agent-list" id="bulk-agent-list"></div>
+                            <button class="btn-modal-primary" id="btn-bulk-push" disabled style="width:100%;margin-top:.75rem">Push to Selected Agents</button>
+                            <div id="bulk-results" style="margin-top:.75rem;display:flex;flex-direction:column;gap:.25rem;font-size:.78rem"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Saved Wizard Presets Tab ── -->
+                <div class="cfg-tab-pane" id="cfgpane-wizardconfigs">
+                    <div class="wizard-presets-layout">
+                        <div class="wizard-presets-toolbar" id="wizard-presets-toolbar">
+                            <input class="form-input" type="search" id="wizard-config-search" placeholder="Search presets…" style="max-width:260px">
+                            <button class="btn-modal-primary" id="btn-create-wizard-preset" style="margin-left:1rem;padding:.4rem .9rem;font-size:.8rem">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Create New Preset
+                            </button>
+                            <button class="btn-action-panel danger" id="btn-clear-all-wizard" style="margin-left:auto">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                                Clear All
+                            </button>
+                        </div>
+                        <div class="wizard-presets-grid" id="wizard-presets-grid">
+                            <div class="cfg-empty-state">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                                <p>No saved wizard presets yet.<br>Check "Save this configuration for later" when adding an agent.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preset Detail View -->
+                    <div class="wizard-preset-detail" id="wizard-preset-detail" style="display:none">
+                        <div class="preset-detail-header">
+                            <button class="btn-modal-cancel" id="btn-preset-back" style="padding:.3rem .7rem;font-size:.8rem">
+                                ← Back
+                            </button>
+                            <div class="preset-detail-title" id="preset-detail-title"></div>
+                            <span class="preset-server-badge" id="preset-server-badge" style="display:none">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                                On Server
+                            </span>
+                            <span class="push-status" id="preset-status-msg" style="margin-left:.5rem"></span>
+                            <div style="display:flex;gap:.5rem;margin-left:auto">
+                                <button class="btn-modal-primary" id="btn-preset-push-server" style="padding:.4rem .9rem;font-size:.8rem">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                    Push to Server
+                                </button>
+                                <button class="btn-modal-secondary" id="btn-preset-edit">Edit</button>
+                                <button class="btn-modal-secondary" id="btn-preset-rename">Rename</button>
+                                <button class="btn-action-panel danger" id="btn-preset-delete">Delete</button>
+                            </div>
+                        </div>
+                        <div class="preset-detail-body" id="preset-detail-body"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Settings Page ── -->
+            <div id="page-settings" class="page">
+                <header class="top-nav">
+                    <div class="page-title">
+                        <h2>Settings</h2>
+                        <p class="subtitle">Server info, UI preferences, and maintenance tools</p>
+                    </div>
+                </header>
+
+                <div class="settings-layout">
+
+                    <!-- Wizard Defaults -->
+                    <div class="settings-card">
+                        <div class="settings-card-title">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            Add Agent — Default Values
+                        </div>
+                        <p class="form-hint" style="margin-bottom:.75rem">These values pre-fill the Add Agent wizard. Useful if your endpoint/version rarely changes.</p>
+                        <div class="form-group">
+                            <label class="form-label" for="setting-default-endpoint">Default OpAMP Endpoint</label>
+                            <input class="form-input" type="text" id="setting-default-endpoint" placeholder="wss://myserver:8080/v1/opamp">
+                        </div>
+                        <div class="form-row two-col">
+                            <div class="form-group">
+                                <label class="form-label" for="setting-default-otel-ver">Default OTel Version</label>
+                                <input class="form-input" type="text" id="setting-default-otel-ver" placeholder="0.151.0">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="setting-default-sup-ver">Default Supervisor Version</label>
+                                <input class="form-input" type="text" id="setting-default-sup-ver" placeholder="0.151.0">
+                            </div>
+                        </div>
+                        <div class="form-row two-col">
+                            <div class="form-group">
+                                <label class="form-label" for="setting-default-storage">Default Storage Dir</label>
+                                <input class="form-input" type="text" id="setting-default-storage" placeholder="/var/lib/otelcol/supervisor">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="setting-default-log-level">Default Log Level</label>
+                                <div class="select-wrapper">
+                                    <select class="form-select" id="setting-default-log-level">
+                                        <option value="info">info</option>
+                                        <option value="debug">debug</option>
+                                        <option value="warn">warn</option>
+                                        <option value="error">error</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- UI Preferences -->
+                    <div class="settings-card">
+                        <div class="settings-card-title">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                            UI Preferences
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="setting-refresh-interval">Agent List Refresh Interval</label>
+                            <div class="select-wrapper">
+                                <select class="form-select" id="setting-refresh-interval">
+                                    <option value="0">Manual only</option>
+                                    <option value="5">Every 5s</option>
+                                    <option value="15">Every 15s (default)</option>
+                                    <option value="30">Every 30s</option>
+                                    <option value="60">Every 60s</option>
+                                </select>
+                            </div>
+                            <p class="form-hint" id="refresh-hint"></p>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:.75rem;margin-top:.25rem">
+                            <span class="push-status" id="settings-status"></span>
+                            <div style="margin-left:auto;display:flex;gap:.5rem">
+                                <button class="btn-modal-cancel" id="btn-reset-settings">Reset Defaults</button>
+                                <button class="btn-modal-primary" id="btn-save-settings">Save Settings</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Server Info -->
+                    <div class="settings-card">
+                        <div class="settings-card-title">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                            Server Information
+                        </div>
+                        <div class="info-grid" id="server-info-grid" style="border:none;padding:0"></div>
+                    </div>
+
+                    <!-- Export -->
+                    <div class="settings-card">
+                        <div class="settings-card-title">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Export Data
+                        </div>
+                        <p class="form-hint" style="margin-bottom:.75rem">Download a snapshot of all registered agents.</p>
+                        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                            <button class="btn-action-panel info-btn" id="btn-export-json">Download JSON</button>
+                            <button class="btn-action-panel" id="btn-export-csv">Download CSV</button>
+                        </div>
+                    </div>
+
+                    <!-- Danger Zone -->
+                    <div class="settings-card danger-card">
+                        <div class="settings-card-title" style="color:var(--red)">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            Danger Zone
+                        </div>
+                        <div class="action-item" style="border:none;padding:0">
+                            <div>
+                                <div class="action-title">Remove All Offline Agents</div>
+                                <div class="action-desc">Permanently delete all agents with status=offline and their config history</div>
+                            </div>
+                            <button class="btn-action-panel danger" id="btn-cleanup-offline">Remove Offline</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ── Agent Detail Panel ── -->
+    <div class="panel-overlay" id="panel-overlay"></div>
+    <aside class="detail-panel" id="detail-panel">
+        <div class="panel-header">
+            <div>
+                <div id="panel-badge" class="agent-badge"></div>
+                <div style="display:flex;align-items:center;gap:.5rem">
+                    <h2 id="panel-name"></h2>
+                    <button class="btn-icon" id="btn-rename-agent" title="Rename Agent" style="padding:0;color:var(--text-muted)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                </div>
+                <div id="panel-uid" class="panel-uid"></div>
+            </div>
+            <button class="btn-icon" id="close-panel">&#x2715;</button>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab active" data-tab="config">Config</button>
+            <button class="tab" data-tab="actions">Actions</button>
+            <button class="tab" data-tab="info">Info</button>
+            <button class="tab" data-tab="metadata">Metadata</button>
+        </div>
+
+        <!-- Config Tab -->
+        <div class="tab-content active" id="tab-config">
+            <div class="config-toolbar">
+                <span class="config-filename" id="config-filename">main.yaml</span>
+                <button class="btn-push" id="btn-push-config">&#x2191; Push Config</button>
+            </div>
+            <textarea class="config-editor" id="config-editor" spellcheck="false" placeholder="Loading configuration..."></textarea>
+            <div class="push-status" id="push-status"></div>
+        </div>
+
+        <!-- Actions Tab -->
+        <div class="tab-content" id="tab-actions">
+            <div class="actions-list">
+                <div class="action-item">
+                    <div>
+                        <div class="action-title">Restart Agent</div>
+                        <div class="action-desc">Send a restart command to the agent process via OpAMP</div>
+                    </div>
+                    <button class="btn-action-panel restart" id="btn-restart">Restart</button>
+                </div>
+                <div class="action-item">
+                    <div>
+                        <div class="action-title">Mark Offline</div>
+                        <div class="action-desc">Manually mark this agent as offline and drop its connection</div>
+                    </div>
+                    <button class="btn-action-panel warn" id="btn-mark-offline">Mark Offline</button>
+                </div>
+                <div class="action-item" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+                    <div>
+                        <div class="action-title">Uninstall Agent</div>
+                        <div class="action-desc">Run this on the host to cleanly remove the agent</div>
+                    </div>
+                    <div class="code-block" style="margin-top: 0.25rem;">
+                        <code class="code-text" id="panel-uninstall-oneliner"></code>
+                        <button class="btn-copy" id="btn-copy-panel-uninstall" title="Copy to clipboard">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        </button>
+                    </div>
+                    <button class="btn-action-panel info-btn" id="btn-uninstall-script" style="align-self: flex-start; margin-top: 0.25rem;">Download Script File</button>
+                </div>
+                <div class="action-divider"></div>
+                <div class="action-item danger-zone">
+                    <div>
+                        <div class="action-title">Delete Agent</div>
+                        <div class="action-desc">Permanently remove this agent and all its configs from the database</div>
+                    </div>
+                    <button class="btn-action-panel danger" id="btn-delete">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Tab -->
+        <div class="tab-content" id="tab-info">
+            <div class="info-grid" id="info-grid"></div>
+        </div>
+
+        <!-- Metadata Tab -->
+        <div class="tab-content" id="tab-metadata">
+            <div class="info-grid" id="metadata-grid">
+                <div class="cfg-empty-state"><p>No metadata available.</p></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         Add Agent Modal
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="modal-overlay"></div>
+    <div class="modal" id="add-agent-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+
+        <!-- Modal Header -->
+        <div class="modal-header">
+            <div>
+                <h2 class="modal-title" id="modal-main-title">Add New Agent</h2>
+                <p class="modal-subtitle" id="modal-subtitle">Deploy an OpAMP supervisor to a remote host</p>
+            </div>
+            <button class="btn-icon" id="modal-close">&#x2715;</button>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="modal-steps">
+            <div class="step active" id="step-indicator-1">
+                <div class="step-num">1</div>
+                <span>Configure</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" id="step-indicator-2">
+                <div class="step-num">2</div>
+                <span>Install</span>
+            </div>
+        </div>
+
+        <!-- ── Step 1: Configure ── -->
+        <div class="modal-body" id="modal-step-1">
+
+            <!-- Saved Configs -->
+            <div class="form-group" id="saved-configs-group" style="display:none">
+                <label class="form-label" for="saved-config-select">Load Saved Config</label>
+                <div class="select-wrapper">
+                    <select class="form-select" id="saved-config-select">
+                        <option value="">— Select a saved configuration —</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- ── Basic (always open) ── -->
+            <details class="cfg-section" open>
+                <summary class="cfg-section-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Connection
+                    <span class="cfg-chevron">▾</span>
+                </summary>
+                <div class="cfg-body">
+                    <div class="form-group">
+                        <label class="form-label" for="input-endpoint">OpAMP Server Endpoint <span class="required">*</span> <span class="tooltip-icon" data-tooltip="The websocket URL of your OpAMP server that the agent will connect to for management and configuration.">?</span></label>
+                        <input class="form-input" type="text" id="input-endpoint" placeholder="wss://yourserver:8080/v1/opamp" autocomplete="off">
+                        <p class="form-hint">ws, wss, http, https schemes supported</p>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label class="form-label" for="input-otel-version">OTel Collector Version <span class="tooltip-icon" data-tooltip="The version of the OpenTelemetry Collector to download and run.">?</span></label>
+                            <input class="form-input" type="text" id="input-otel-version" placeholder="e.g. 0.151.0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="input-sup-version">Supervisor Version <span class="tooltip-icon" data-tooltip="The version of the OpAMP Supervisor to download and run. The supervisor manages the collector process.">?</span></label>
+                            <input class="form-input" type="text" id="input-sup-version" placeholder="e.g. 0.151.0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="input-label">Agent Label <span class="optional">optional</span> <span class="tooltip-icon" data-tooltip="A friendly display name for the agent in your fleet dashboard.">?</span></label>
+                        <input class="form-input" type="text" id="input-label" placeholder="e.g. production-east">
+                    </div>
+                </div>
+            </details>
+
+            <!-- ── Capabilities ── -->
+            <details class="cfg-section" open>
+                <summary class="cfg-section-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    Capabilities
+                    <span class="cfg-chevron">▾</span>
+                </summary>
+                <div class="cfg-body">
+                    <p class="form-hint" style="margin-bottom:.75rem">Toggle which OpAMP capabilities this supervisor will support</p>
+                    <div class="caps-grid">
+                        <label class="cap-toggle"><input type="checkbox" id="cap-remote-config" checked disabled><span class="checkbox-box" style="opacity: 0.5;"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">accepts_remote_config</span><span class="tooltip-icon" data-tooltip="Allows the agent to receive and apply collector configurations dynamically from the server. (Mandatory)">?</span></div><span class="cap-desc">Accept config from server</span></span></label>
+                        <label class="cap-toggle"><input type="checkbox" id="cap-restart-cmd" checked><span class="checkbox-box"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">accepts_restart_command</span><span class="tooltip-icon" data-tooltip="Allows the server to request the agent to restart the OpenTelemetry Collector process.">?</span></div><span class="cap-desc">Accept restart requests</span></span></label>
+                        <label class="cap-toggle"><input type="checkbox" id="cap-opamp-conn-settings"><span class="checkbox-box"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">accepts_opamp_connection_settings</span><span class="tooltip-icon" data-tooltip="Allows the server to update the agent's OpAMP connection details (like endpoint or auth credentials).">?</span></div><span class="cap-desc">Accept OpAMP connection settings</span></span></label>
+                        <label class="cap-toggle"><input type="checkbox" id="cap-eff-config" checked><span class="checkbox-box"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">reports_effective_config</span><span class="tooltip-icon" data-tooltip="The agent will report back the actual configuration the collector is currently running with.">?</span></div><span class="cap-desc">Report effective config (default: on)</span></span></label>
+                        <label class="cap-toggle"><input type="checkbox" id="cap-own-metrics" checked><span class="checkbox-box"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">reports_own_metrics</span><span class="tooltip-icon" data-tooltip="The agent will send metrics about its own health and performance to the server.">?</span></div><span class="cap-desc">Report collector metrics (default: on)</span></span></label>
+                        <label class="cap-toggle"><input type="checkbox" id="cap-own-logs"><span class="checkbox-box"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">reports_own_logs</span><span class="tooltip-icon" data-tooltip="The agent will send its own internal log lines to the server for troubleshooting.">?</span></div><span class="cap-desc">Send collector logs to backend</span></span></label>
+                        <label class="cap-toggle"><input type="checkbox" id="cap-own-traces"><span class="checkbox-box"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">reports_own_traces</span><span class="tooltip-icon" data-tooltip="The agent will send its own internal distributed traces to the server.">?</span></div><span class="cap-desc">Send collector traces to backend</span></span></label>
+                        <label class="cap-toggle"><input type="checkbox" id="cap-health" checked><span class="checkbox-box"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">reports_health</span><span class="tooltip-icon" data-tooltip="The agent will periodically report whether the collector is healthy, starting, or stopped.">?</span></div><span class="cap-desc">Report health status (default: on)</span></span></label>
+                        <label class="cap-toggle"><input type="checkbox" id="cap-remote-config-status" checked disabled><span class="checkbox-box" style="opacity: 0.5;"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">reports_remote_config</span><span class="tooltip-icon" data-tooltip="The agent will report whether the remote configuration was successfully applied or if it failed. (Mandatory)">?</span></div><span class="cap-desc">Report remote config status</span></span></label>
+                        <label class="cap-toggle"><input type="checkbox" id="cap-components"><span class="checkbox-box"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">reports_available_components</span><span class="tooltip-icon" data-tooltip="The agent will report the list of all receivers, processors, and exporters compiled into the collector binary.">?</span></div><span class="cap-desc">Report available collector components</span></span></label>
+                        <label class="cap-toggle"><input type="checkbox" id="cap-heartbeat" checked><span class="checkbox-box"></span><span class="cap-info"><div class="cap-header"><span class="cap-name">reports_heartbeat</span><span class="tooltip-icon" data-tooltip="The agent will send periodic pings to indicate it is still alive and connected.">?</span></div><span class="cap-desc">Send periodic heartbeats (default: on)</span></span></label>
+                    </div>
+                </div>
+            </details>
+
+            <!-- ── Agent Settings ── -->
+            <details class="cfg-section">
+                <summary class="cfg-section-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    Agent Settings
+                    <span class="cfg-chevron">▾</span>
+                </summary>
+                <div class="cfg-body">
+                    <div class="form-group">
+                        <label class="form-label" for="input-executable">Collector Executable Path <span class="tooltip-icon" data-tooltip="The absolute path on the remote host where the collector binary is located or will be installed by the script.">?</span></label>
+                        <input class="form-input" type="text" id="input-executable" value="/opt/otelcol/bin/otelcol-contrib">
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label class="form-label" for="input-run-as">Run As User <span class="tooltip-icon" data-tooltip="The system user account under which the supervisor and collector processes will execute.">?</span></label>
+                            <input class="form-input" type="text" id="input-run-as" value="otelcol">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="input-opamp-port">OpAMP Server Port <span class="optional">optional</span> <span class="tooltip-icon" data-tooltip="Override the port used for OpAMP connections. 'auto' infers it from the endpoint URL scheme.">?</span></label>
+                            <input class="form-input" type="text" id="input-opamp-port" placeholder="auto">
+                        </div>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label class="form-label" for="input-orphan-interval">Orphan Detection Interval <span class="tooltip-icon" data-tooltip="How frequently the supervisor checks if its parent process has unexpectedly died.">?</span></label>
+                            <input class="form-input" type="text" id="input-orphan-interval" value="5s">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="input-bootstrap-timeout">Bootstrap Timeout <span class="tooltip-icon" data-tooltip="Maximum time the supervisor waits for the initial configuration from the server before timing out.">?</span></label>
+                            <input class="form-input" type="text" id="input-bootstrap-timeout" value="3s">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="input-args">Extra Args <span class="optional">one per line</span> <span class="tooltip-icon" data-tooltip="Additional command-line arguments passed directly to the OpenTelemetry Collector binary.">?</span></label>
+                        <textarea class="form-input form-textarea" id="input-args" rows="2" placeholder="--feature-gates&#10;service.AllowNoPipelines"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="input-env">Environment Variables <span class="optional">KEY=VALUE, one per line</span> <span class="tooltip-icon" data-tooltip="Custom environment variables exposed to the supervisor and collector processes.">?</span></label>
+                        <textarea class="form-input form-textarea" id="input-env" rows="2" placeholder="HOME=/dev/home&#10;MY_VAR=value"></textarea>
+                    </div>
+                </div>
+            </details>
+
+            <!-- ── Access Control ── -->
+            <details class="cfg-section">
+                <summary class="cfg-section-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Access Control
+                    <span class="cfg-chevron">▾</span>
+                </summary>
+                <div class="cfg-body">
+                    <p class="form-hint" style="margin-bottom:.75rem">Restrict which directories the Collector may read/write. Leave blank to deny all filesystem access.</p>
+                    <div class="form-group">
+                        <label class="form-label" for="input-read-allow">Read — Allow <span class="optional">comma separated</span> <span class="tooltip-icon" data-tooltip="Directories the collector is permitted to read from (e.g. log files). Limits access for security.">?</span></label>
+                        <input class="form-input" type="text" id="input-read-allow" placeholder="/var/log,/etc/otel">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="input-read-deny">Read — Deny <span class="optional">comma separated</span> <span class="tooltip-icon" data-tooltip="Directories the collector is explicitly blocked from reading, overriding allow rules.">?</span></label>
+                        <input class="form-input" type="text" id="input-read-deny" placeholder="/var/log/secret_logs">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="input-write-allow">Write — Allow <span class="optional">comma separated</span> <span class="tooltip-icon" data-tooltip="Directories the collector is permitted to write to.">?</span></label>
+                        <input class="form-input" type="text" id="input-write-allow" placeholder="/var/otelcol">
+                    </div>
+                </div>
+            </details>
+
+            <!-- ── Description Attributes ── -->
+            <details class="cfg-section">
+                <summary class="cfg-section-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    Description Attributes
+                    <span class="cfg-chevron">▾</span>
+                </summary>
+                <div class="cfg-body">
+                    <p class="form-hint" style="margin-bottom:.75rem">Key-value pairs sent to the OpAMP server as agent metadata. Format: <code style="color:#a5b4fc">key=value</code>, one per line.</p>
+                    <div class="form-group">
+                        <label class="form-label" for="input-id-attrs">Identifying Attributes <span class="tooltip-icon" data-tooltip="Key-value pairs that uniquely identify this agent (e.g. host.id, mac.address). These cannot change without creating a new agent instance.">?</span></label>
+                        <textarea class="form-input form-textarea" id="input-id-attrs" rows="2" placeholder="client.id=01HWWSK84BMT7J45663MBJMTPJ&#10;service.name=my-collector"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="input-non-id-attrs">Non-Identifying Attributes <span class="tooltip-icon" data-tooltip="Additional metadata about the agent (e.g. os.version, environment) that can change over time without affecting identity.">?</span></label>
+                        <textarea class="form-input form-textarea" id="input-non-id-attrs" rows="2" placeholder="environment=production&#10;region=us-east-1"></textarea>
+                    </div>
+                </div>
+            </details>
+
+            <!-- ── Storage & Telemetry ── -->
+            <details class="cfg-section">
+                <summary class="cfg-section-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                    Storage &amp; Telemetry
+                    <span class="cfg-chevron">▾</span>
+                </summary>
+                <div class="cfg-body">
+                    <div class="form-group">
+                        <label class="form-label" for="input-storage-dir">Storage Directory <span class="tooltip-icon" data-tooltip="The local directory where the supervisor persists its internal state, configuration backups, and downloaded files.">?</span></label>
+                        <input class="form-input" type="text" id="input-storage-dir" value="/var/lib/otelcol/supervisor">
+                        <p class="form-hint">Writable directory where the supervisor caches config and state</p>
+                    </div>
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label class="form-label" for="input-log-level">Log Level <span class="tooltip-icon" data-tooltip="The verbosity of the supervisor's internal logging output.">?</span></label>
+                            <div class="select-wrapper">
+                                <select class="form-select" id="input-log-level">
+                                    <option value="info" selected>info</option>
+                                    <option value="debug">debug</option>
+                                    <option value="warn">warn</option>
+                                    <option value="error">error</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="input-metrics-level">Metrics Verbosity <span class="tooltip-icon" data-tooltip="How detailed the supervisor's self-reported health and performance metrics should be.">?</span></label>
+                            <div class="select-wrapper">
+                                <select class="form-select" id="input-metrics-level">
+                                    <option value="basic">basic</option>
+                                    <option value="normal" selected>normal</option>
+                                    <option value="detailed">detailed</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Save this config -->
+            <div class="save-config-row" id="save-config-row">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="chk-save-config">
+                    <span class="checkbox-box"></span>
+                    Save this configuration for later
+                </label>
+                <input class="form-input save-name-input" type="text" id="input-save-name"
+                       placeholder="Config name (e.g. prod-us-east)" style="display:none">
+            </div>
+
+        </div>
+
+
+        <!-- ── Step 2: Install Scripts ── -->
+        <div class="modal-body" id="modal-step-2" style="display:none">
+
+            <div class="script-section">
+                <div class="script-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Run this on your target server
+                </div>
+                <div class="code-block">
+                    <code class="code-text" id="install-oneliner"></code>
+                    <button class="btn-copy" id="btn-copy-install" title="Copy to clipboard">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
+                </div>
+                <a class="btn-download" id="btn-download-install" href="#" download="openfleet-install.sh">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download install.sh
+                </a>
+            </div>
+
+            <div class="script-divider">
+                <span>Uninstall Script</span>
+            </div>
+
+            <div class="script-section muted">
+                <div class="script-label muted-label">Remove the agent from a host</div>
+                <div class="code-block">
+                    <code class="code-text" id="uninstall-oneliner"></code>
+                    <button class="btn-copy" id="btn-copy-uninstall" title="Copy to clipboard">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
+                </div>
+                <a class="btn-download secondary" id="btn-download-uninstall" href="#" download="openfleet-uninstall.sh">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download uninstall.sh
+                </a>
+            </div>
+
+            <!-- Waiting for agent -->
+            <div class="wait-section" id="wait-section">
+                <div class="wait-spinner"></div>
+                <div class="wait-text">
+                    <span id="wait-label">Waiting for agent to connect…</span>
+                </div>
+            </div>
+            <div class="wait-success" id="wait-success" style="display:none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                New agent connected! <span id="wait-agent-name"></span>
+            </div>
+
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" id="modal-cancel">Cancel</button>
+            <div class="modal-footer-right">
+                <button class="btn-modal-secondary" id="modal-back" style="display:none">&#x2190; Back</button>
+                <button class="btn-modal-primary" id="modal-next">Next &#x2192;</button>
+                <button class="btn-modal-primary" id="modal-done" style="display:none">Done</button>
+                <button class="btn-modal-primary" id="modal-save-preset" style="display:none">Save</button>
+                <button class="btn-modal-secondary" id="modal-save-as-new-preset" style="display:none">Save As New</button>
+                <button class="btn-modal-secondary" id="modal-save-local" style="display:none">Save Local</button>
+                <button class="btn-modal-primary" id="modal-save-server" style="display:none">Save to Server</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="js/panel.js"></script>
+    <script src="js/modal.js"></script>
+    <script src="js/configs.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

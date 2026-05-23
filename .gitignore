@@ -1,0 +1,40 @@
+# ── Binaries ──────────────────────────────────────────────────────────────────
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+openfleet
+openfleet-*
+
+# ── Go build cache ─────────────────────────────────────────────────────────────
+*.test
+*.out
+/vendor/
+
+# ── Database (runtime state — not source) ─────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+
+# ── Config overrides (keep config.yaml.example, not the real one) ─────────────
+# config.yaml  ← tracked intentionally as an example; add secrets to config.local.yaml
+config.local.yaml
+
+# ── Scratch / test files ───────────────────────────────────────────────────────
+../dummy.yaml
+../dummy2.yaml
+../dummy3.yaml
+../test-agent/
+
+# ── IDE / OS ───────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
