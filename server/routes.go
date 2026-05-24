@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/open-telemetry/opamp-go/protobufs"
@@ -46,9 +48,38 @@ func (srv *server) registerRoutes(mux *http.ServeMux, opampHandler http.Handler)
 	mux.HandleFunc("/api/install-script", srv.handleInstallScriptAPI)
 	mux.HandleFunc("/api/uninstall-script", srv.handleUninstallScriptAPI)
 
-	// Static UI
-	fs := http.FileServer(http.Dir("ui"))
-	mux.Handle("/", fs)
+	// Static UI — served from the binary-embedded filesystem
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		p := strings.TrimPrefix(r.URL.Path, "/")
+		if p == "" {
+			p = "index.html"
+		}
+		data, err := fs.ReadFile(uiFiles, p)
+		if err != nil {
+			// Fallback to index.html for SPA client-side routing
+			data, err = fs.ReadFile(uiFiles, "index.html")
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			p = "index.html"
+		}
+		switch {
+		case strings.HasSuffix(p, ".html"):
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		case strings.HasSuffix(p, ".css"):
+			w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		case strings.HasSuffix(p, ".js"):
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		case strings.HasSuffix(p, ".json"):
+			w.Header().Set("Content-Type", "application/json")
+		case strings.HasSuffix(p, ".svg"):
+			w.Header().Set("Content-Type", "image/svg+xml")
+		case strings.HasSuffix(p, ".png"):
+			w.Header().Set("Content-Type", "image/png")
+		}
+		w.Write(data)
+	})
 }
 
 // Someone hits POST /api/agents/restart?uid=test-instance-12
