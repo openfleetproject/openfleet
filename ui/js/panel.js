@@ -41,11 +41,44 @@ function updatePanelHeader(agent) {
     document.getElementById('panel-name').textContent = displayName;
     document.getElementById('panel-uid').textContent  = agent.id;
 
-    // Populate the bash one-liner for uninstall
+    // Populate the uninstall one-liner
     var host = window.location.host;
     var proto = window.location.protocol;
-    var cmd = 'curl -fsSL "' + proto + '//' + host + '/api/uninstall-script?uid=' + encodeURIComponent(agent.id) + '" | sudo bash';
+    
+    // Check if agent OS is Windows (either directly on agent.os or in metadata)
+    var isWin = false;
+    if (agent.os && agent.os.toLowerCase().indexOf('windows') !== -1) {
+        isWin = true;
+    } else if (agent.metadata) {
+        try {
+            var meta = JSON.parse(agent.metadata);
+            if (meta['os.type'] === 'windows' || (meta.os && meta.os.toLowerCase().indexOf('windows') !== -1)) {
+                isWin = true;
+            }
+        } catch (e) {}
+    }
+
+    var uninstallUrl = proto + '//' + host + '/api/uninstall-script?uid=' + encodeURIComponent(agent.id);
+    var cmd = '';
+    if (isWin) {
+        uninstallUrl += '&os=windows';
+        cmd = 'Invoke-WebRequest -Uri "' + uninstallUrl + '" -OutFile "uninstall.ps1" -UseBasicParsing; powershell.exe -ExecutionPolicy Bypass -File .\\uninstall.ps1';
+    } else {
+        cmd = 'curl -fsSL "' + uninstallUrl + '" | sudo bash';
+    }
+    
     document.getElementById('panel-uninstall-oneliner').textContent = cmd;
+    
+    // Update the download link
+    var btnUninstall = document.getElementById('btn-uninstall-script');
+    if (btnUninstall) {
+        // Remove old listeners by cloning
+        var newBtn = btnUninstall.cloneNode(true);
+        btnUninstall.parentNode.replaceChild(newBtn, btnUninstall);
+        newBtn.addEventListener('click', function() {
+            window.open(uninstallUrl + '&download=1', '_blank');
+        });
+    }
 }
 
 /* ─── Tabs ─────────────────────────── */
@@ -70,7 +103,7 @@ function initDetailPanel() {
     document.getElementById('btn-restart').addEventListener('click', restartAgent);
     document.getElementById('btn-mark-offline').addEventListener('click', markOffline);
     document.getElementById('btn-delete').addEventListener('click', deleteAgent);
-    document.getElementById('btn-uninstall-script').addEventListener('click', getUninstallScript);
+    // document.getElementById('btn-uninstall-script').addEventListener('click', getUninstallScript); // handled dynamically now
 
     document.getElementById('btn-copy-panel-uninstall').addEventListener('click', function() {
         var text = document.getElementById('panel-uninstall-oneliner').textContent;
@@ -230,10 +263,7 @@ async function deleteAgent() {
     } catch (err) { alert('Error: ' + err.message); }
 }
 
-function getUninstallScript() {
-    if (!activeAgentId) return;
-    window.open('/api/uninstall-script?uid=' + encodeURIComponent(activeAgentId) + '&download=1', '_blank');
-}
+// getUninstallScript is now handled inline in updatePanelHeader via event listener replacement
 
 /* ─── Helpers ─────────────────────────── */
 function showStatus(msg, type) {

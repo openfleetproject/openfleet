@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"path/filepath"
 	"strings"
 )
 
@@ -194,6 +193,162 @@ fi
 info "Uninstall complete. Agent {{UID}} has been removed from this host."
 `
 
+var windowsInstallScriptTemplate = `$ErrorActionPreference = "Stop"
+
+# --- Config (injected by OpenFleet) ---
+$OPAMP_ENDPOINT="{{ENDPOINT}}"
+$OTEL_VERSION="{{OTEL_VERSION}}"
+$SUPERVISOR_VERSION="{{SUPERVISOR_VERSION}}"
+$AGENT_LABEL="{{LABEL}}"
+
+$INSTALL_DIR="{{INSTALL_DIR}}"
+$BIN_DIR="{{BIN_DIR}}"
+$CONF_DIR="{{CONF_DIR}}"
+$STORAGE_DIR="{{STORAGE_DIR}}"
+$SERVICE_NAME="{{SERVICE_NAME}}"
+
+function Write-Info { param([string]$Message); Write-Host "[OK] $Message" -ForegroundColor Green }
+function Write-Warn { param([string]$Message); Write-Host "[!] $Message" -ForegroundColor Yellow }
+function Write-Err  { param([string]$Message); Write-Host "[ERR] $Message" -ForegroundColor Red; exit 1 }
+
+# --- Root check ---
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) { Write-Err "Please run as Administrator (elevated prompt)." }
+
+Write-Host "--- OpenFleet Agent Installation ---" -ForegroundColor Cyan
+Write-Info "Endpoint : $OPAMP_ENDPOINT"
+Write-Info "OTel v   : $OTEL_VERSION"
+Write-Info "Label    : $AGENT_LABEL"
+
+# --- 1. Directories ---
+Write-Host ""
+Write-Host "--- Environment ---" -ForegroundColor Cyan
+New-Item -ItemType Directory -Force -Path $BIN_DIR | Out-Null
+New-Item -ItemType Directory -Force -Path $CONF_DIR | Out-Null
+New-Item -ItemType Directory -Force -Path $STORAGE_DIR | Out-Null
+Write-Info "Directories ready"
+
+# --- 2. OTel Contrib Collector ---
+Write-Host ""
+Write-Host "--- OTel Contrib Collector v$OTEL_VERSION ---" -ForegroundColor Cyan
+$otelArchive = "$env:TEMP\otelcol.tar.gz"
+$otelBin = "$BIN_DIR\otelcol-contrib.exe"
+if (Test-Path $otelBin) {
+    Write-Warn "Already installed - skipping download."
+} else {
+    $arch = "amd64"
+    if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { $arch = "arm64" }
+    
+    $url = "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${OTEL_VERSION}/otelcol-contrib_${OTEL_VERSION}_windows_${arch}.tar.gz"
+    Write-Info "Downloading $url"
+    Invoke-WebRequest -Uri $url -OutFile $otelArchive -UseBasicParsing
+    
+    New-Item -ItemType Directory -Force -Path "$env:TEMP\otel_extracted" | Out-Null
+    tar.exe -xf $otelArchive -C "$env:TEMP\otel_extracted"
+    
+    # tar extraction leaves the binary as otelcol-contrib.exe inside the folder
+    Move-Item -Path "$env:TEMP\otel_extracted\otelcol-contrib.exe" -Destination $otelBin -Force
+    Remove-Item $otelArchive -Force
+    Remove-Item -Recurse -Force "$env:TEMP\otel_extracted"
+    Write-Info "otelcol-contrib installed"
+}
+
+# --- 3. OpAMP Supervisor ---
+Write-Host ""
+Write-Host "--- OpAMP Supervisor ---" -ForegroundColor Cyan
+$supBin = "$BIN_DIR\opamp-supervisor.exe"
+if (-not (Test-Path $supBin)) {
+    $arch = "amd64"
+    if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { $arch = "arm64" }
+    $url = "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/cmd%2Fopampsupervisor%2Fv${SUPERVISOR_VERSION}/opampsupervisor_${SUPERVISOR_VERSION}_windows_${arch}.exe"
+    Write-Info "Downloading $url"
+    Invoke-WebRequest -Uri $url -OutFile $supBin -UseBasicParsing
+    Write-Info "opamp-supervisor downloaded and installed"
+}
+
+# --- 4. Supervisor config ---
+Write-Host ""
+Write-Host "--- Supervisor Configuration ---" -ForegroundColor Cyan
+$supervisorYaml = @'
+{{SUPERVISOR_YAML}}
+'@
+Set-Content -Path "$CONF_DIR\supervisor.yaml" -Value $supervisorYaml -Encoding UTF8
+Write-Info "Config written to $CONF_DIR\supervisor.yaml"
+
+# --- 5. Scheduled Task (Background Service) ---
+Write-Host ""
+Write-Host "--- Background Task ---" -ForegroundColor Cyan
+$task = Get-ScheduledTask -TaskName $SERVICE_NAME -ErrorAction SilentlyContinue
+if ($task) {
+    Write-Info "Task $SERVICE_NAME already exists. Stopping..."
+    Stop-ScheduledTask -TaskName $SERVICE_NAME -ErrorAction SilentlyContinue
+} else {
+    Write-Info "Creating scheduled task $SERVICE_NAME..."
+}
+
+$action = New-ScheduledTaskAction -Execute $supBin -Argument "--config ""$CONF_DIR\supervisor.yaml"""
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -DontStopOnIdle -ExecutionTimeLimit (New-TimeSpan -Days 0)
+
+Register-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -Settings $settings -TaskName $SERVICE_NAME -Description "OpenTelemetry Supervisor managed by OpenFleet" -Force | Out-Null
+
+Write-Info "Starting task $SERVICE_NAME..."
+Start-ScheduledTask -TaskName $SERVICE_NAME
+Write-Info "Task '$SERVICE_NAME' enabled and started"
+
+Write-Host ""
+Write-Host "Installation complete!"
+Write-Host "  Start  :  Start-ScheduledTask $SERVICE_NAME" -ForegroundColor Green
+Write-Host "  Status :  Get-ScheduledTask $SERVICE_NAME" -ForegroundColor Green
+Write-Host "  Logs   :  Event Viewer -> Windows Logs -> Application" -ForegroundColor Green
+`
+
+var windowsUninstallScriptTemplate = `$ErrorActionPreference = "Stop"
+
+# --- Config (injected by OpenFleet) ---
+$SERVICE_NAME="{{SERVICE_NAME}}"
+$INSTALL_DIR="{{INSTALL_DIR}}"
+$CONF_DIR="{{CONF_DIR}}"
+$STORAGE_DIR="{{STORAGE_DIR}}"
+$OPENFLEET_URL="{{OPENFLEET_URL}}"
+$UID="{{UID}}"
+
+function Write-Info { param([string]$Message); Write-Host "[OK] $Message" -ForegroundColor Green }
+function Write-Warn { param([string]$Message); Write-Host "[!] $Message" -ForegroundColor Yellow }
+
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) { Write-Host "[ERR] Please run as Administrator."; exit 1 }
+
+Write-Host "Uninstalling OpenFleet agent (UID: $UID)..." -ForegroundColor Red
+
+# 1. Stop and remove scheduled task
+$task = Get-ScheduledTask -TaskName $SERVICE_NAME -ErrorAction SilentlyContinue
+if ($task) {
+    Stop-ScheduledTask -TaskName $SERVICE_NAME -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $SERVICE_NAME -Confirm:$false
+    Write-Info "Task stopped and removed."
+} else {
+    Write-Warn "Service $SERVICE_NAME not found."
+}
+
+# 2. Remove directories
+if (Test-Path $INSTALL_DIR) { Remove-Item -Recurse -Force $INSTALL_DIR }
+if (Test-Path $CONF_DIR) { Remove-Item -Recurse -Force $CONF_DIR }
+if (Test-Path $STORAGE_DIR) { Remove-Item -Recurse -Force $STORAGE_DIR }
+Write-Info "Binaries and config removed."
+
+# 3. Deregister
+try {
+    Invoke-WebRequest -Method Post -Uri "$OPENFLEET_URL/api/agents/delete?uid=$UID" -UseBasicParsing | Out-Null
+    Write-Info "Agent deregistered from OpenFleet server."
+} catch {
+    Write-Warn "Could not reach OpenFleet server - remove the agent manually from the dashboard."
+}
+
+Write-Info "Uninstall complete. Agent $UID has been removed from this host."
+`
+
 func renderScript(tmpl string, replacements map[string]string) string {
 	result := tmpl
 	for k, v := range replacements {
@@ -278,6 +433,19 @@ func argLines(raw, indent string) string {
 	return strings.Join(out, "\n")
 }
 
+func dirFromPath(p string) string {
+	idx := strings.LastIndexAny(p, `/\\`)
+	if idx < 0 {
+		return "."
+	}
+	if idx == 0 {
+		return p[:1]
+	}
+    // Handle things like "C:\" -> "C:\" instead of "C:" if we cut at the slash, though simple cut is usually fine.
+    // Actually, simple cut is fine: C:\openfleet\bin -> C:\openfleet
+	return p[:idx]
+}
+
 func (srv *server) handleInstallScriptAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -301,10 +469,16 @@ func (srv *server) handleInstallScriptAPI(w http.ResponseWriter, r *http.Request
 	}
 	label := q.Get("label")
 
-	// Agent settings
+	// Default handling based on OS
+	isWindows := q.Get("os") == "windows"
+	
 	executable := q.Get("executable")
 	if executable == "" {
-		executable = "/opt/otelcol/bin/otelcol-contrib"
+		if isWindows {
+			executable = `C:\openfleet\bin\otelcol-contrib.exe`
+		} else {
+			executable = "/opt/otelcol/bin/otelcol-contrib"
+		}
 	}
 	runAs := q.Get("run_as")
 	if runAs == "" {
@@ -321,7 +495,11 @@ func (srv *server) handleInstallScriptAPI(w http.ResponseWriter, r *http.Request
 	opampPort := q.Get("opamp_port")
 	storageDir := q.Get("storage_dir")
 	if storageDir == "" {
-		storageDir = "/var/lib/otelcol/supervisor"
+		if isWindows {
+			storageDir = `C:\openfleet\storage`
+		} else {
+			storageDir = "/var/lib/otelcol/supervisor"
+		}
 	}
 	logLevel := q.Get("log_level")
 	if logLevel == "" {
@@ -429,18 +607,29 @@ telemetry:
 
 	// Derive install paths from the executable param so the script matches
 	// exactly what the user configured — no hardcoded paths.
-	binDir := filepath.Dir(executable) // e.g. /opt/otelcol/bin
-	installDir := filepath.Dir(binDir) // e.g. /opt/otelcol
+	binDir := dirFromPath(executable)
+	installDir := dirFromPath(binDir)
 	confDir := q.Get("conf_dir")
 	if confDir == "" {
-		confDir = "/etc/otel-supervisor"
+		if isWindows {
+			confDir = `C:\openfleet\config`
+		} else {
+			confDir = "/etc/otel-supervisor"
+		}
 	}
 	serviceName := q.Get("service_name")
 	if serviceName == "" {
 		serviceName = "otel-supervisor"
 	}
 
-	script := renderScript(installScriptTemplate, map[string]string{
+	tmpl := installScriptTemplate
+	filename := "openfleet-install.sh"
+	if isWindows {
+		tmpl = windowsInstallScriptTemplate
+		filename = "openfleet-install.ps1"
+	}
+
+	script := renderScript(tmpl, map[string]string{
 		"{{ENDPOINT}}":           endpoint,
 		"{{OTEL_VERSION}}":       otelVer,
 		"{{SUPERVISOR_VERSION}}": supVer,
@@ -455,12 +644,11 @@ telemetry:
 	})
 
 	if q.Get("download") == "1" {
-		w.Header().Set("Content-Disposition", `attachment; filename="openfleet-install.sh"`)
+		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte(script))
 }
-
 func (srv *server) handleUninstallScriptAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -474,20 +662,34 @@ func (srv *server) handleUninstallScriptAPI(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	isWindows := q.Get("os") == "windows"
+
 	// Mirror the same path params used at install time so cleanup is exact.
 	executable := q.Get("executable")
 	if executable == "" {
-		executable = "/opt/otelcol/bin/otelcol-contrib"
+		if isWindows {
+			executable = `C:\openfleet\bin\otelcol-contrib.exe`
+		} else {
+			executable = "/opt/otelcol/bin/otelcol-contrib"
+		}
 	}
-	binDir := filepath.Dir(executable)
-	installDir := filepath.Dir(binDir)
+	binDir := dirFromPath(executable)
+	installDir := dirFromPath(binDir)
 	confDir := q.Get("conf_dir")
 	if confDir == "" {
-		confDir = "/etc/otel-supervisor"
+		if isWindows {
+			confDir = `C:\openfleet\config`
+		} else {
+			confDir = "/etc/otel-supervisor"
+		}
 	}
 	storageDir := q.Get("storage_dir")
 	if storageDir == "" {
-		storageDir = "/var/lib/otelcol/supervisor"
+		if isWindows {
+			storageDir = `C:\openfleet\storage`
+		} else {
+			storageDir = "/var/lib/otelcol/supervisor"
+		}
 	}
 	runAs := q.Get("run_as")
 	if runAs == "" {
@@ -506,7 +708,14 @@ func (srv *server) handleUninstallScriptAPI(w http.ResponseWriter, r *http.Reque
 	}
 	openfleetURL := scheme + "://" + r.Host
 
-	script := renderScript(uninstallScriptTemplate, map[string]string{
+	tmpl := uninstallScriptTemplate
+	filename := "openfleet-uninstall.sh"
+	if isWindows {
+		tmpl = windowsUninstallScriptTemplate
+		filename = "openfleet-uninstall.ps1"
+	}
+
+	script := renderScript(tmpl, map[string]string{
 		"{{UID}}":           uid,
 		"{{SERVICE_NAME}}":  serviceName,
 		"{{INSTALL_DIR}}":   installDir,
@@ -518,7 +727,7 @@ func (srv *server) handleUninstallScriptAPI(w http.ResponseWriter, r *http.Reque
 	})
 
 	if q.Get("download") == "1" {
-		w.Header().Set("Content-Disposition", `attachment; filename="openfleet-uninstall.sh"`)
+		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte(script))

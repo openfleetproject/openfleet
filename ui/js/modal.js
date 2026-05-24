@@ -41,6 +41,21 @@ function initAddAgentModal() {
     var port = window.location.port || (window.location.protocol === 'https:' ? '443' : '8080');
     document.getElementById('input-endpoint').value = proto + '://' + host + ':' + port + '/v1/opamp';
 
+    document.getElementById('input-executable').addEventListener('input', function() { this.dataset.touched = '1'; });
+    document.getElementById('input-storage-dir').addEventListener('input', function() { this.dataset.touched = '1'; });
+
+    // OS selector updates placeholders
+    document.getElementById('input-os').addEventListener('change', function () {
+        var isWin = this.value === 'windows';
+        document.getElementById('input-executable').placeholder = isWin ? 'C:\\openfleet\\bin\\otelcol-contrib.exe' : '/opt/otelcol/bin/otelcol-contrib';
+        document.getElementById('input-storage-dir').placeholder = isWin ? 'C:\\openfleet\\storage' : '/var/lib/otelcol/supervisor';
+        // Note: conf_dir isn't exposed in the UI right now, but if it is added later it can be handled here.
+        // Also wipe default values so placeholders take effect if user didn't explicitly type
+        if (!document.getElementById('input-executable').dataset.touched) {
+             document.getElementById('input-executable').value = '';
+        }
+    });
+
     renderSavedConfigsDropdown();
 }
 
@@ -143,6 +158,7 @@ function collectFormValues() {
     if (supV === window.githubVersions?.sup)   supV  = '';
 
     return {
+        os: document.getElementById('input-os').value,
         endpoint: document.getElementById('input-endpoint').value.trim(),
         otelVersion: otelV,
         supervisorVersion: supV,
@@ -182,11 +198,13 @@ function applyFormValues(v) {
     if (v.otelVersion === '0.96.0') v.otelVersion = '';
     if (v.supervisorVersion === '0.96.0' || v.supervisorVersion === '0.151.0') v.supervisorVersion = '';
 
+    document.getElementById('input-os').value = v.os || 'linux';
     document.getElementById('input-endpoint').value = v.endpoint || '';
     document.getElementById('input-otel-version').value = v.otelVersion || window.githubVersions.otel || '0.96.0';
     document.getElementById('input-sup-version').value = v.supervisorVersion || window.githubVersions.sup || '0.151.0';
     document.getElementById('input-label').value = v.label || '';
-    document.getElementById('input-executable').value = v.executable || '/opt/otelcol/bin/otelcol-contrib';
+    document.getElementById('input-executable').value = v.executable || '';
+    if (v.executable) document.getElementById('input-executable').dataset.touched = '1';
     document.getElementById('input-run-as').value = v.runAs || 'otelcol';
     document.getElementById('input-opamp-port').value = v.opampPort || '';
     document.getElementById('input-orphan-interval').value = v.orphanInterval || '5s';
@@ -198,7 +216,8 @@ function applyFormValues(v) {
     document.getElementById('input-write-allow').value = v.writeAllow || '';
     document.getElementById('input-id-attrs').value = v.idAttrs || '';
     document.getElementById('input-non-id-attrs').value = v.nonIdAttrs || '';
-    document.getElementById('input-storage-dir').value = v.storageDir || '/var/lib/otelcol/supervisor';
+    document.getElementById('input-storage-dir').value = v.storageDir || '';
+    if (v.storageDir) document.getElementById('input-storage-dir').dataset.touched = '1';
     if (v.logLevel) document.getElementById('input-log-level').value = v.logLevel;
     if (v.metricsLevel) document.getElementById('input-metrics-level').value = v.metricsLevel;
     if (v.caps) {
@@ -227,6 +246,7 @@ function buildScriptLinks() {
     var v = collectFormValues();
     var base = window.location.origin;
     var params = new URLSearchParams({
+        os: v.os,
         endpoint: v.endpoint,
         otel_version: v.otelVersion || window.githubVersions.otel || '0.96.0',
         supervisor_version: v.supervisorVersion || window.githubVersions.sup || '0.151.0',
@@ -252,20 +272,42 @@ function buildScriptLinks() {
     });
 
     var installUrl = base + '/api/install-script?' + params.toString();
-    var uninstallBase = base + '/api/uninstall-script?uid=YOUR_AGENT_UID';
+    var uninstallBase = base + '/api/uninstall-script?uid=YOUR_AGENT_UID&os=' + v.os;
 
-    document.getElementById('install-oneliner').textContent =
-        'curl -fsSL "' + installUrl + '" | sudo bash';
-    document.getElementById('btn-download-install').href = installUrl + '&download=1';
+    var btnInstall = document.getElementById('btn-download-install');
+    var btnUninstall = document.getElementById('btn-download-uninstall');
 
-    document.getElementById('uninstall-oneliner').textContent =
-        'curl -fsSL "' + uninstallBase + '" | sudo bash';
-    document.getElementById('btn-download-uninstall').href = uninstallBase + '&download=1';
+    if (v.os === 'windows') {
+        document.getElementById('install-oneliner').textContent =
+            'Invoke-WebRequest -Uri "' + installUrl + '" -OutFile "install.ps1" -UseBasicParsing; powershell.exe -ExecutionPolicy Bypass -File .\\install.ps1';
+        document.getElementById('uninstall-oneliner').textContent =
+            'Invoke-WebRequest -Uri "' + uninstallBase + '" -OutFile "uninstall.ps1" -UseBasicParsing; powershell.exe -ExecutionPolicy Bypass -File .\\uninstall.ps1';
+        
+        btnInstall.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download install.ps1';
+        btnInstall.setAttribute('download', 'openfleet-install.ps1');
+        
+        btnUninstall.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download uninstall.ps1';
+        btnUninstall.setAttribute('download', 'openfleet-uninstall.ps1');
+    } else {
+        document.getElementById('install-oneliner').textContent =
+            'curl -fsSL "' + installUrl + '" | sudo bash';
+        document.getElementById('uninstall-oneliner').textContent =
+            'curl -fsSL "' + uninstallBase + '" | sudo bash';
+            
+        btnInstall.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download install.sh';
+        btnInstall.setAttribute('download', 'openfleet-install.sh');
+        
+        btnUninstall.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download uninstall.sh';
+        btnUninstall.setAttribute('download', 'openfleet-uninstall.sh');
+    }
+
+    btnInstall.href = installUrl + '&download=1';
+    btnUninstall.href = uninstallBase + '&download=1';
 }
 
 /* ─── Waiting for new agent ─────────────────────────── */
 function startWaiting() {
-    waitCountdown = 60;
+    waitCountdown = 120;
     var waitEl = document.getElementById('wait-section');
     var successEl = document.getElementById('wait-success');
     var labelEl = document.getElementById('wait-label');
@@ -276,9 +318,9 @@ function startWaiting() {
 
     waitTimer = setInterval(function () {
         waitCountdown--;
-        if (waitCountdown <= 0) {
-            stopWaiting();
-            labelEl.textContent = 'Timed out — you can still run the script anytime.';
+        if (waitCountdown === 0) {
+            // Do not stop polling; Windows downloads + tar extraction can take several minutes.
+            labelEl.textContent = 'Taking longer than expected... waiting for agent to connect.';
         }
         fetchAgents();
     }, 1000);

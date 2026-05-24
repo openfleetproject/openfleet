@@ -488,6 +488,15 @@
                 </summary>
                 <div class="cfg-body">
                     <div class="form-group">
+                        <label class="form-label" for="input-os">Target OS <span class="required">*</span> <span class="tooltip-icon" data-tooltip="The operating system of the remote host where the agent will be installed.">?</span></label>
+                        <div class="select-wrapper">
+                            <select class="form-select" id="input-os">
+                                <option value="linux">Linux</option>
+                                <option value="windows">Windows</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
                         <label class="form-label" for="input-endpoint">OpAMP Server Endpoint <span class="required">*</span> <span class="tooltip-icon" data-tooltip="The websocket URL of your OpAMP server that the agent will connect to for management and configuration.">?</span></label>
                         <input class="form-input" type="text" id="input-endpoint" placeholder="wss://yourserver:8080/v1/opamp" autocomplete="off">
                         <p class="form-hint">ws, wss, http, https schemes supported</p>
@@ -631,7 +640,7 @@
                 <div class="cfg-body">
                     <div class="form-group">
                         <label class="form-label" for="input-storage-dir">Storage Directory <span class="tooltip-icon" data-tooltip="The local directory where the supervisor persists its internal state, configuration backups, and downloaded files.">?</span></label>
-                        <input class="form-input" type="text" id="input-storage-dir" value="/var/lib/otelcol/supervisor">
+                        <input class="form-input" type="text" id="input-storage-dir" placeholder="/var/lib/otelcol/supervisor">
                         <p class="form-hint">Writable directory where the supervisor caches config and state</p>
                     </div>
                     <div class="form-row two-col">
