@@ -11,16 +11,40 @@ env:
 
 jobs:
   build:
-    name: Build & Vet
-    runs-on: ubuntu-latest
+    name: Build & Vet (${{ matrix.goos }}, ${{ matrix.goarch }})
+    runs-on: ${{ matrix.runs-on }}
 
     strategy:
       matrix:
-        goos: [linux, windows, darwin]
-        goarch: [amd64, arm64]
-        exclude:
+        include:
+          # Linux — amd64 on a standard x86-64 runner (CGO on, native gcc)
+          - goos: linux
+            goarch: amd64
+            runs-on: ubuntu-latest
+            cgo: "1"
+
+          # Linux — arm64 on GitHub's native ARM64 runner (CGO on, native gcc)
+          - goos: linux
+            goarch: arm64
+            runs-on: ubuntu-24.04-arm
+            cgo: "1"
+
+          # Windows — cross-compiled from Linux x86-64 (CGO off, no sqlite)
           - goos: windows
-            goarch: arm64  # no arm64 Windows builds
+            goarch: amd64
+            runs-on: ubuntu-latest
+            cgo: "0"
+
+          # macOS — cross-compiled from Linux x86-64 (CGO off, no sqlite)
+          - goos: darwin
+            goarch: amd64
+            runs-on: ubuntu-latest
+            cgo: "0"
+
+          - goos: darwin
+            goarch: arm64
+            runs-on: ubuntu-latest
+            cgo: "0"
 
     steps:
       - name: Checkout
@@ -47,7 +71,7 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: ${{ matrix.goos == 'linux' && '1' || '0' }}
+          CGO_ENABLED: ${{ matrix.cgo }}
         run: |
           EXT=""
           [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
