@@ -1,87 +1,82 @@
-name: CI
+  name: CI
 
-on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+  on:
+    push:
+      branches: ["main"]
+    pull_request:
+      branches: ["main"]
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-jobs:
-  build:
-    name: Build & Vet (${{ matrix.goos }}, ${{ matrix.goarch }})
-    runs-on: ${{ matrix.runs-on }}
+  jobs:
+    build:
+      name: Build & Vet (${{ matrix.goos }}, ${{ matrix.goarch }})
+      runs-on: ${{ matrix.runs-on }}
 
-    strategy:
-      matrix:
-        include:
-          # Linux — amd64 on a standard x86-64 runner (CGO on, native gcc)
-          - goos: linux
-            goarch: amd64
-            runs-on: ubuntu-latest
-            cgo: "1"
+      strategy:
+        matrix:
+          include:
+            # Linux — amd64 on a standard x86-64 runner (CGO on, native gcc)
+            - goos: linux
+              goarch: amd64
+              runs-on: ubuntu-latest
+              cgo: "1"
 
-          # Linux — arm64 on GitHub's native ARM64 runner (CGO on, native gcc)
-          - goos: linux
-            goarch: arm64
-            runs-on: ubuntu-24.04-arm
-            cgo: "1"
+            # Linux — arm64 on GitHub's native ARM64 runner (CGO on, native gcc)
+            - goos: linux
+              goarch: arm64
+              runs-on: ubuntu-24.04-arm
+              cgo: "1"
 
-          # Windows — cross-compiled from Linux x86-64 (CGO off, no sqlite)
-          - goos: windows
-            goarch: amd64
-            runs-on: ubuntu-latest
-            cgo: "0"
+            # Windows — cross-compiled from Linux x86-64 (CGO off, no sqlite)
+            - goos: windows
+              goarch: amd64
+              runs-on: ubuntu-latest
+              cgo: "0"
 
-          # macOS — cross-compiled from Linux x86-64 (CGO off, no sqlite)
-          - goos: darwin
-            goarch: amd64
-            runs-on: ubuntu-latest
-            cgo: "0"
+            # macOS — cross-compiled from Linux x86-64 (CGO off, no sqlite)
+            - goos: darwin
+              goarch: amd64
+              runs-on: ubuntu-latest
+              cgo: "0"
 
-          - goos: darwin
-            goarch: arm64
-            runs-on: ubuntu-latest
-            cgo: "0"
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
+        - name: Set up Go
+          uses: actions/setup-go@v5
+          with:
+            go-version-file: "go.mod"
+            cache: true
 
-      - name: Set up Go
-        uses: actions/setup-go@v5.4.0
-        with:
-          go-version-file: "go.mod"
-          cache: true
+        - name: Install gcc (required for go-sqlite3 CGO — linux only)
+          if: matrix.goos == 'linux'
+          run: sudo apt-get install -y gcc
 
-      - name: Install gcc (required for go-sqlite3 CGO — linux only)
-        if: matrix.goos == 'linux'
-        run: sudo apt-get install -y gcc
+        - name: Download dependencies
+          run: go mod download
 
-      - name: Download dependencies
-        run: go mod download
+        - name: Vet
+          if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+          run: go vet ./...
 
-      - name: Vet
-        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
-        run: go vet ./...
+        - name: Build binary
+          env:
+            GOOS: ${{ matrix.goos }}
+            GOARCH: ${{ matrix.goarch }}
+            CGO_ENABLED: ${{ matrix.cgo }}
+          run: |
+            EXT=""
+            [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
+            mkdir -p dist
+            go build -ldflags="-s -w" -o dist/openfleet-${{ matrix.goos }}-${{ matrix.goarch }}${EXT} .
 
-      - name: Build binary
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: ${{ matrix.cgo }}
-        run: |
-          EXT=""
-          [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
-          mkdir -p dist
-          go build -ldflags="-s -w" -o dist/openfleet-${{ matrix.goos }}-${{ matrix.goarch }}${EXT} .
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: openfleet-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/openfleet-${{ matrix.goos }}-${{ matrix.goarch }}*
-          retention-days: 14
-          if-no-files-found: error
+        - name: Upload artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: openfleet-${{ matrix.goos }}-${{ matrix.goarch }}
+            path: dist/openfleet-${{ matrix.goos }}-${{ matrix.goarch }}*
+            retention-days: 14
+            if-no-files-found: error
