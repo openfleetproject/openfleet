@@ -1,0 +1,4 @@
+extensions:
+  zpages: {}
+service:
+  extensions: [zpages]

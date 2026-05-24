@@ -1,0 +1,5 @@
+extensions:
+  opamp:
+    server:
+      ws:
+        endpoint: ws://wrong.host/
